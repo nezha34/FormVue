@@ -1,0 +1,53 @@
+{
+  "name": "formvue",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@primevue/themes": "^4.2.1",
+    "axios": "^1.7.7",
+    "buffer": "^6.0.3",
+    "chart.js": "^4.4.7",
+    "esbuild-plugin-polyfill-node": "^0.3.0",
+    "global": "^4.4.0",
+    "gridstack": "^11.0.1",
+    "jquery": "^3.7.1",
+    "jquery-ui": "github:components/jqueryui#1.11.4",
+    "jquery-ui-dist": "^1.13.3",
+    "lucide-vue-next": "^0.469.0",
+    "pivottable": "^2.23.0",
+    "plotly": "^1.0.6",
+    "plotly.js": "^2.35.3",
+    "plotly.js-dist-min": "^2.35.3",
+    "primeflex": "^3.3.1",
+    "primeicons": "^7.0.0",
+    "primevue": "^4.2.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-pivottable": "^0.11.0",
+    "stream-browserify": "^3.0.0",
+    "tailwindcss-primeui": "^0.3.4",
+    "vue": "^3.5.12",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
+    "@primevue/auto-import-resolver": "^4.2.1",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "@vitejs/plugin-react": "^4.3.4",
+    "@vitejs/plugin-vue": "^5.1.4",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "rollup-plugin-node-polyfills": "^0.2.1",
+    "tailwindcss": "^3.4.17",
+    "unplugin-vue-components": "^0.27.4",
+    "vite": "^5.4.11",
+    "vite-plugin-node-polyfills": "^0.22.0"
+  }
+}
