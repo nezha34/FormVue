@@ -21,6 +21,8 @@ import Textarea from 'primevue/textarea';
 import Dialog from 'primevue/dialog';
 import Divider from 'primevue/divider';
 
+import Chip from 'primevue/chip';
+
 import 'primeicons/primeicons.css'
 
 const app = createApp(App)
@@ -44,6 +46,7 @@ app.component("Popover", Popover);
 app.use(ToastService); // Register ToastService globally
 app.component('Toast', Toast); // Important: register the component globally
 app.component('Tabs', Tabs);
+app.component('Chip', Chip);
 
 app.use(router);
 app.component('Card', Card);

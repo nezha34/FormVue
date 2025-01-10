@@ -21,14 +21,14 @@
 
                 <!-- Header -->
                 <div class="drawer-header">
-                    <span class="drawer-title">Agent Dashboard</span>
+                    <span class="drawer-title">User Dashboard</span>
                 </div>
 
                 <!-- Agent Stats -->
                 <div v-if="agentStats" class="drawer-body">
                     <!-- Stats Summary -->
                     <div class="stats-section">
-                        <h4 class="stats-title">Stats Pour Agent {{ agentStats.agent_id }}</h4>
+                        <h4 class="stats-title">Stats Pour User {{ agentStats.agent_id }}</h4>
                         <div class="stats-summary">
                             <h5>Résumé</h5>
                             <div class="stats-grid">
@@ -49,6 +49,10 @@
                                     <span class="stat-value">{{ agentStats.rendezvous_calls }}</span>
                                 </div>
                                 <div class="stat-item">
+                                    <span class="stat-label">Appels Injoignables:</span>
+                                    <span class="stat-value">{{ agentStats.unreached_calls }}</span>
+                                </div>
+                                <div class="stat-item">
                                     <span class="stat-label">Appels Refusés:</span>
                                     <span class="stat-value">{{ agentStats.rejected_calls }}</span>
                                 </div>
@@ -67,13 +71,17 @@
                                  :key="index"
                                  class="appointment-card"
                             >
-                                <div class="appointment-header">
-                                    <span class="foyer-id">Foyer #{{ rendezvous.foyer_id }}</span>
+                                <div class="appointment-header">             
+                                     
+                                    <span class="foyer-id">Foyer #
+                                        <a href="#" @click.prevent="selectFoyer(rendezvous.foyer_id)" class="foyer-link">
+                {{ rendezvous.foyer_id }}
+              </a></span>
                                     <span class="appointment-indicator"></span>
                                 </div>
                                 <div class="appointment-time">
                                     <i class="pi pi-clock"></i>
-                                    {{ (rendezvous.rendezvous_details) }}
+                                    {{ formatTime(rendezvous.rendezvous_details) }}
                                 </div>
                             </div>
                         </div>
@@ -94,15 +102,22 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits } from 'vue';
+import { defineProps, defineEmits, watch, getCurrentInstance } from 'vue';
 import Drawer from 'primevue/drawer';
 import Button from 'primevue/button';
+import { useToast } from 'primevue/usetoast';
+import axios from 'axios';
 
-defineProps({
+const toast = useToast();
+
+// Access current Vue instance for proxy
+const { proxy } = getCurrentInstance();
+
+// Define props
+const props = defineProps({
     agentStats: {
         type: Object,
         required: false,
-        default: null,
     },
     visible: {
         type: Boolean,
@@ -115,8 +130,92 @@ defineProps({
     },
 });
 
-defineEmits(['update:visible']);
+// Method to format time
+const formatTime = (dateTime) => {
+    const date = new Date(dateTime);
+    const hours = String(date.getHours()).padStart(2, '0');  // Ensures two-digit hours
+    const minutes = String(date.getMinutes()).padStart(2, '0');  // Ensures two-digit minutes
+    return `${hours}:${minutes}`;
+};
+
+// Define emits
+const emit = defineEmits(['update:visible', 'foyer-selected']);
+
+// Watch for changes in agentStats.upcoming_rendezvous
+watch(
+    () => props.agentStats?.upcoming_rendezvous, // Use props explicitly
+    (rendezvousList) => {
+        if (!rendezvousList || rendezvousList.length === 0) {
+            return; // Exit if rendezvousList is empty or undefined
+        }
+
+        const now = new Date();
+        rendezvousList.forEach((rendezvous) => {
+            const rendezvousTime = rendezvous.rendezvous_details
+                ? new Date(rendezvous.rendezvous_details)
+                : null;
+
+            if (rendezvousTime === null || isNaN(rendezvousTime)) {
+                console.warn("Invalid rendezvous_time: ", rendezvous.rendezvous_details);
+                return; // Skip invalid or null values
+            }
+
+            // Calculate the time difference in milliseconds
+            const timeDifference = rendezvousTime - now;
+
+            // Check if the rendezvous is within 15 minutes (900,000 milliseconds)
+            if (timeDifference > 0 && timeDifference <= 15 * 60 * 1000) {
+                if (proxy?.$toast?.add) {
+                    proxy.$toast.add({
+                        severity: "info",
+                        summary: "Rendezvous Dans 15minutes",
+                        detail: `Foyer  ID: ${rendezvous.foyer_id} à ${formatTime(rendezvous.rendezvous_details)}`,
+                        life: 10000,
+                    });
+                } else {
+                    console.warn("Toast service is not available.");
+                }
+            }
+        });
+    },
+    { immediate: true }
+);
+
+
+const selectFoyer = async (foyerId) => {
+  console.log('Attempting to lock foyer:', foyerId);
+  console.log('Agent ID:', props.agentStats.agent_id);
+
+  try {
+    const response = await axios.patch(
+      `http://127.0.0.1:8000/foyers/${foyerId}/lock?agent_id=${props.agentStats.agent_id}`
+    );
+    console.log('Lock successful:', response.data);
+
+    emit('foyer-selected', foyerId);
+  } catch (error) {
+    if (error.response && error.response.status === 409) {
+      console.error('Conflict Error:', error.response.data);
+      toast.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'Le foyer est verrouillé par un autre agent.',
+        life: 3000,
+      });
+    } else {
+      console.error('Unexpected Error:', error.response || error.message);
+      toast.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'Échec de la sélection du foyer',
+        life: 3000,
+      });
+    }
+  }
+};
+
 </script>
+
 
 <style scoped>
 .agent-stats-drawer {
@@ -128,7 +227,7 @@ defineEmits(['update:visible']);
     flex-direction: column;
     height: 100%;
     position: relative;
-    padding: 1.5rem;
+    padding: 1rem;
 }
 
 .close-button {
@@ -150,7 +249,6 @@ defineEmits(['update:visible']);
 }
 
 .drawer-header {
-    margin-bottom: 2rem;
     padding-top: 0.5rem;
 }
 
@@ -245,7 +343,7 @@ defineEmits(['update:visible']);
     padding: 0;
 }
 .appointments-section {
-    margin-top: 2rem;
+    margin-top: 1rem;
     background: white;
     border-radius: 1rem;
     padding: 1.5rem;
@@ -300,36 +398,53 @@ defineEmits(['update:visible']);
     color: #0f172a;
     font-size: 1rem;
 }
+foyer-id {
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 1rem;
+}
+
+.foyer-link {
+  color: #3b82f6;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.foyer-link:hover {
+  color: #2563eb;
+  text-decoration: underline;
+}
 
 .appointment-indicator {
-    width: 8px;
-    height: 8px;
-    background: #3b82f6;
-    border-radius: 50%;
-    animation: pulse 2s infinite;
+  width: 8px;
+  height: 8px;
+  background: #3b82f6;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
 }
 
 .appointment-time {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: #64748b;
-    font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #64748b;
+  font-size: 0.875rem;
 }
 
 .appointment-time i {
-    color: #3b82f6;
-    font-size: 0.875rem;
+  color: #3b82f6;
+  font-size: 0.875rem;
 }
 
 .no-appointments {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 2rem;
-    color: #64748b;
-    text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2rem;
+  color: #64748b;
+  text-align: center;
 }
 
 .no-appointments i {

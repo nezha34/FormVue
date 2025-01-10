@@ -4,12 +4,17 @@
     <ConfirmDialog />
     <div class="dashboard-layout">
         <AgentStatsDrawer :agentStats="agentStats" :visible="visible" @update:visible="(val) => (visible = val)"
-            :error="error" />
+            :error="error" @foyer-selected="handleFoyerSelection" />
 
 
         <!-- Left Sidebar with FoyerList Component -->
         <aside class="dashboard-sidebar-left">
-            <Button icon="pi pi-bars" @click="visible = true" severity="contrast" variant="text" />
+            <div class="sidebar-header">
+
+                <Button icon="pi pi-bars" @click="visible = true" severity="contrast" variant="text" />
+                <img src="/Users/nezhanezha/Downloads/MarocMetrieLogo.Jpeg" alt="Marocmétrie" class="company-logo" />
+
+            </div>
 
             <div class="sidebar-content">
 
@@ -18,9 +23,14 @@
 
 
         </aside>
-
+        <main v-if="!foyerId" class="dashboard-main">
+            <Accueil @start-calls="visible = true" v-model="visible" />
+        </main>
+        
         <!-- Main Content -->
-        <main class="dashboard-main">
+        <main v-else class="dashboard-main">
+            <Banner/>
+
             <div class="main-content">
                 <!-- Header with Unavailability Button -->
                 <div class="main-header">
@@ -86,7 +96,6 @@
                                         @click="toggleTelVisibility" style="cursor: pointer; margin-left: 0.5rem;"></i>
                                 </div>
                             </div>
-
                             <div class="info-item">
                                 <div class="info-label">Mobile</div>
                                 <div class="info-value">
@@ -100,27 +109,30 @@
                         </div>
                         <!-- Time Controls -->
                         <div class="time-controls">
-                            <Button class="schedule-button" severity="secondary" @click="scheduleVisible = true">
+                            <Button v-if="!formData.start_time" class="schedule-button" severity="secondary"
+                                @click="scheduleVisible = true">
                                 <i class="pi pi-calendar mr-2"></i>
                                 Rendez-Vous
                             </Button>
-                            <button v-if="!isUnavailable" class="time-button" :class="{ 'time-set': formData.start_time }"
-                                @click="setStartTime">
+                            <button v-if="!isUnavailable" class="time-button"
+                                :class="{ 'time-set': formData.start_time }" @click="setStartTime">
                                 <i class="pi pi-clock"></i>
                                 {{ formData.start_time ? new Date(formData.start_time).toLocaleTimeString() : 'Début' }}
                             </button>
-                            <button  v-if="!isUnavailable" class="time-button" :class="{ 'time-set': formData.end_time }" @click="setEndTime">
+                            <button v-if="!isUnavailable" class="time-button" :class="{ 'time-set': formData.end_time }"
+                                @click="setEndTime">
                                 <i class="pi pi-clock"></i>
                                 {{ formData.end_time ? new Date(formData.end_time).toLocaleTimeString() : 'Fin' }}
                             </button>
                             <Button v-if="!formData.start_time" class="unavailable-button" severity="Info"
                                 @click="setClientUnavailable" :class="{ disabled: isUnavailable }">
                                 <span class="status-dot"></span>
-                                 Indisponible
+                                Indisponible
                             </Button>
                         </div>
                     </template>
                 </Card>
+
 
                 <!-- Main Form Tabs -->
 
@@ -190,7 +202,8 @@
                                                     <div class="question-wrapper">
 
                                                         <DynamicTable :data="filteredMembers" :columns="individuColumns"
-                                                            uniqueKey="indiv_id" @update="handleIndividuUpdate" />
+                                                            :posteData="filteredPostes" uniqueKey="indiv_id"
+                                                            @update="handleIndividuUpdate" />
                                                     </div>
                                                     <div class="question-wrapper">
                                                         <!-- Render the question with ID '7' only once -->
@@ -254,22 +267,33 @@
                 <div v-if="isUnavailable" class="unavailable-reason">
                     <div class="reason-selector">
                         <label for="reason">Motif d'indisponibilité :</label>
-                        <select v-model="unavailableReason" id="reason">
+                        <select v-model="unavailableReason" id="reason" class="reason-dropdown">
                             <option disabled value="">Select a reason</option>
+                            <option>Abondon</option>
+                            <option>Absent du Domicile</option>
+                            <option>Non Réponse</option>
                             <option>Moins de 15ans</option>
+                            <option>Injoignable</option>
+                            <option>Faux Num</option>
+                            <option>Foyer En voyage</option>
                             <option>Pas un membre du foyer</option>
                             <option>Refus</option>
                             <option>Pas Disponible/Prendre un rendez-vous</option>
                         </select>
                     </div>
+                    <Button label="Submit" icon="pi pi-check" class="p-button-success submit-button"
+                        @click="handleSubmitWithReason" />
                 </div>
+
 
             </div>
         </main>
 
         <!-- Right Sidebar - Progress -->
         <aside class="dashboard-sidebar-right">
+
             <div class="sidebar-content">
+
                 <h2 class="sidebar-title">Progress</h2>
 
                 <!-- Foyer Section -->
@@ -305,7 +329,7 @@
                                     <span class="info-value">{{ formData.postes.length }}</span>
                                 </div>
                                 <div class="postes-list">
-                                    <div v-for="poste in formData.postes" :key="poste.id_poste" class="poste-item">
+                                    <div v-for="poste in postesDisplay" :key="poste.id_poste" class="poste-item">
                                         <div class="poste-header">Poste {{ poste.num_poste }}</div>
                                         <div class="poste-details">
                                             <span>État: {{ poste.etat || "N/A" }}</span>
@@ -368,13 +392,14 @@
                                 <div v-if="answers['7']" class="guests-list">
                                     <div v-if="formData.invites && formData.invites.length > 0">
                                         <div v-for="(guest, index) in formData.invites" :key="index" class="guest-item">
+
                                             <div class="guest-header">
                                                 <span class="guest-name">{{ guest.prenom || 'Sans nom' }}</span>
                                                 <span class="guest-age">{{ guest.age || 'Age non spécifié' }}</span>
                                             </div>
                                             <div class="guest-details">
                                                 <span>Sexe: {{ guest.sex || 'Non spécifié' }}</span>
-                                                <span>TV: {{ getEmplacementLabel(guest.tvLocation) }}</span>
+                                                <span>TV: {{ getEmplacementLabel(guest.emplacement_TV) }}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -418,23 +443,23 @@ import Card from 'primevue/card';
 import Button from 'primevue/button';
 import FoyerList from '@/components/FoyerList.vue';
 import AgentStatsDrawer from '@/components/AgentStatsDrawer.vue';
-
+import Accueil from '@/components/Accueil.vue';
 import 'primeicons/primeicons.css'
 
 
-
+import Banner from '@/components/Banner.vue';
 const agent = ref(null); // Initialize as a reactive variable
 const storedAgentId = localStorage.getItem('agentId');
-agent.value = parseInt(storedAgentId, 10)
+agent.value = String(storedAgentId)
+console.log('agent',agent.value)
 
 onMounted(() => {
-  if (storedAgentId) {
-     // Update the reactive variable
-    console.log('Agent ID fetched from localStorage:', agent.value); // Logs the integer value
-  } else {
-    console.error('Agent ID not found in localStorage.');
-    window.location.href = '/login'; // Redirect if missing
-  }
+    if (storedAgentId) {
+        // Update the reactive variable
+    } else {
+        console.error('Agent ID not found in localStorage.');
+        window.location.href = '/login'; // Redirect if missing
+    }
 });
 
 
@@ -446,7 +471,7 @@ const toast = useToast();
 const scheduleVisible = ref(false);
 
 // Reactive References
-const foyerId = ref(null);
+const foyerId = ref("");
 const foyerData = ref({});
 const filteredMembers = ref([]);
 const filteredPostes = ref([]);
@@ -472,9 +497,10 @@ const formData = ref({
         Nouvelle_addresse: "",
         Nouveau_numTel: "",
         Commentaire: "",
+        Commentaire_facultatif:"",
     },
     agent: agent.value,
-    day: new Date().toISOString(), // Initializes with today's date in YYYY-MM-DD format
+    day: new Date().toISOString().split("T")[0], // Initializes with today's date in YYYY-MM-DD format
     dynamic_answers: [],
 });
 
@@ -483,7 +509,6 @@ const formData = ref({
 const agentStats = ref(null);
 const fetchAgentStats = async () => {
     try {
-        console.log('agent',agent)
         if (agent) {
             // Get today's date in YYYY-MM-DD format
             const today = new Date().toISOString().split("T")[0];
@@ -500,6 +525,7 @@ const fetchAgentStats = async () => {
                         total_foyers: acc.total_foyers + stat.total_foyers,
                         completed_calls: acc.completed_calls + stat.completed_calls,
                         rendezvous_calls: acc.rendezvous_calls + stat.rendezvous_calls,
+                        unreached_calls: acc.unreached_calls + stat.unreached_calls,
                         rejected_calls: acc.rejected_calls + stat.rejected_calls,
                     }),
                     {
@@ -508,6 +534,7 @@ const fetchAgentStats = async () => {
                         total_foyers: 0,
                         completed_calls: 0,
                         rendezvous_calls: 0,
+                        unreached_calls: 0,
                         rejected_calls: 0,
                     }
                 );
@@ -521,6 +548,7 @@ const fetchAgentStats = async () => {
                     total_foyers: 0,
                     completed_calls: 0,
                     rendezvous_calls: 0,
+                    unreached_calls: 0,
                     rejected_calls: 0,
                 };
             }
@@ -545,44 +573,6 @@ watch(visible, (newValue) => {
 
 
 
-
-watch(
-    () => agentStats.value?.upcoming_rendezvous,
-    (rendezvousList) => {
-        if (!rendezvousList || rendezvousList.length === 0) {
-            return; // Exit if rendezvousList is empty or undefined
-        }
-
-        const now = new Date();
-        rendezvousList.forEach((rendezvous) => {
-            const rendezvousTime = rendezvous.rendezvous_details
-                ? new Date(rendezvous.rendezvous_details)
-                : null;
-
-            if (rendezvousTime === null || isNaN(rendezvousTime)) {
-                console.warn("Invalid rendezvous_time: ", rendezvous.rendezvous_details);
-                return; // Skip invalid or null values
-            }
-
-            const timeDiff = (rendezvousTime - now) / (1000 * 60); // Time in minutes
-            console.log("Time difference:", timeDiff);
-
-            if (timeDiff > 0 && timeDiff <= 30) {
-                if (proxy?.$toast?.add) {
-                    proxy.$toast.add({
-                        severity: "info",
-                        summary: "Upcoming Rendezvous",
-                        detail: `Foyer ID: ${rendezvous.no_foyer} at ${rendezvousTime.toLocaleTimeString()}`,
-                        life: 10000,
-                    });
-                } else {
-                    console.warn("Toast service is not available.");
-                }
-            }
-        });
-    },
-    { immediate: true }
-);
 
 
 // Form Controls
@@ -614,20 +604,22 @@ const updateMembersActivity = (activity) => {
 };
 const setStartTime = () => {
     formData.value.start_time = new Date().toISOString();
-    console.log("Start Time Set:", formData.value.start_time);
+    console.log("start",formData.value.start_time);
 };
 
 // Method to capture end time
 const setEndTime = () => {
     formData.value.end_time = new Date().toISOString();
-    console.log("End Time Set:", formData.value.end_time);
+    console.log("fin",formData.value.end_time);
+
 };
 // Columns for Individuals Table
 const individuColumns = ref([
     { field: "nom", header: "Nom", placeholder: "Enter Nom", editable: false },
     { field: "prenom", header: "Prénom", placeholder: "Enter Prénom", editable: false },
     { field: "age", header: "Age", placeholder: "Enter Age", editable: false },
-    { field: "num_touche", header: "Num Touche", placeholder: "Enter Num Touche", editable: true },
+    { field: "num_touche", header: "Touche", placeholder: "Enter Num Touche", editable: true },
+
 ]);
 
 // Info Rows for Additional Information
@@ -636,16 +628,21 @@ const infoRows = ref([
     { information: "Nouvelle adresse", detail: "" },
     { information: "Nouveau N° téléphone", detail: "" },
     { information: "Commentaires", detail: "" },
+    { information: "Commentaire facultatif", detail: "" },
+
 ]);
 watch(infoRows, (newVal) => {
-    console.log("Parent infoRows updated:", newVal);
 }, { deep: true });
 const emplacementOptions = [
-    { label: "Salon", value: 1 },
-    { label: "Séjour", value: 2 },
-    { label: "Chambre à coucher", value: 3 },
-    { label: "Cuisine", value: 4 },
+    { label: "Séjour", value: 1 },
+    { label: "Salon", value: 3 },
+    { label: "Chambre à coucher", value: 4 },
     { label: "Autre chambre", value: 5 },
+    { label: "Cuisine", value: 7 },
+    { label: "Supprimé", value: 9 },
+    { label: "Sorti", value: 10 },
+    { label: "Absent", value: 11 },
+
 ];
 const getEmplacementLabel = (value) => {
     const option = emplacementOptions.find((opt) => opt.value === value);
@@ -653,16 +650,30 @@ const getEmplacementLabel = (value) => {
 };
 
 watch(unavailableReason, async (newReason) => {
-    console.log("New Reason:", newReason); // Debug the reason selected
 
     if (newReason) {
-        console.log("Submitting with reason:", newReason);
-        await handleSubmitAndPost(3, newReason); // Submit the form for other reasons
+        formData.value.end_time = new Date().toISOString();
+
+        console.log("Submitting with reason:", newReason, formData.end_time);
+        //await handleSubmitAndPost(3, newReason); // Submit the form for other reasons
     } else {
         console.warn("No reason selected");
     }
 });
+const handleSubmitWithReason = async () => {
+    if (!unavailableReason.value) {
+        console.warn("No reason selected");
+        return;
+    }
 
+    const status =
+        unavailableReason.value === "Abondon" || unavailableReason.value === "Refus"
+            ? 3
+            : 4;
+
+    console.log("Submitting with status:", status, "and reason:", unavailableReason.value);
+    await handleSubmitAndPost(status, unavailableReason.value);
+};
 
 
 // Watch `foyerId` to Fetch Foyer Data and Reset Progress
@@ -674,13 +685,14 @@ watch(
             updateProgressSidebar();
             resetFormData();
 
+
             if (newFoyerId) {
                 await fetchFoyerData(); // Fetch data for the new foyer
             }
         }
     }
 );
-;
+
 const filteredAnswers = computed(() => {
     return Object.entries(answers.value)
         .filter(([id]) => id !== '1' && id !== '2' && id !== '7')
@@ -690,11 +702,10 @@ const filteredAnswers = computed(() => {
         }, {});
 });
 watch(
-  () => formData.postes,
-  (newPostes) => {
-    console.log("Updated postes:", newPostes);
-  },
-  { deep: true }
+    () => formData.postes,
+    (newPostes) => {
+    },
+    { deep: true }
 );
 
 const navigateToQuestion = (questionId) => {
@@ -705,10 +716,11 @@ const navigateToQuestion = (questionId) => {
         questionElement.scrollIntoView({ behavior: 'smooth' });
     }
 };
-const handleScheduleConfirm = (closeCallback) => {
+const handleScheduleConfirm = () => {
     if (appointment.value.date) {
+        formData.value.start_time = new Date().toISOString();
+
         confirmAndScheduleRendezvous();
-        closeCallback();
     } else {
         toast.add({
             severity: 'warn',
@@ -781,14 +793,12 @@ const handleTVStateChange = (newState) => {
             ...member,
             activite: "Ne Regarde Pas TV",
         }));
-        console.log("Updated activite for members due to TV state being inactive:", filteredMembers.value);
     } else if (newState === "ON") {
         // Reset "activite" when TV is active
         filteredMembers.value = filteredMembers.value.map((member) => ({
             ...member,
             activite: "", // Reset or set to a default value when TV is ON
         }));
-        console.log("Updated activite for members due to TV state being active:", filteredMembers.value);
     } else {
         console.warn("Unhandled TV state:", newState);
     }
@@ -820,33 +830,30 @@ const handleIndividuUpdate = (updatedIndividus) => {
         age: parseInt(indiv.age) || 0,
         statut: indiv.statut || "",
         activite: indiv.activite || "",
+        emplacement: indiv.emplacement|| "",
     }));
-    console.log("Updated individus in formData:", formData.value.individus);
 
 };
 
 // Set Answers for Dynamic Questions
 
 const setAnswer = ({ id_qst, question, answer }) => {
-    if (id_qst === "2") {
-        // Ensure reactivity by creating a new array reference
-        formData.value.postes = [...answer]; // Spread into a new array
-        console.log("Updated postes in formData:", formData.value.postes);
+    if (id_qst === "2") { // Replace `postesQuestionId` with the actual ID of the postes question
+        formData.value.postes = answer; // Assign the postes data to formData
+        console.log("Updated postes in formData1:", formData.value.postes);
     } else {
         answers.value[id_qst] = { question, answer };
-
-        // Update dynamic_answers in formData reactively
-        const existingIndex = formData.value.dynamic_answers.findIndex((item) => item.id_qst === id_qst);
+        // Update dynamic_answers in formData
+        const existingIndex = formData.value.dynamic_answers.findIndex((item) => item.id === id_qst);
         if (existingIndex !== -1) {
+            // Update existing question
             formData.value.dynamic_answers[existingIndex] = { id_qst, question, answer };
         } else {
+            // Add new question
             formData.value.dynamic_answers.push({ id_qst, question, answer });
         }
     }
 };
-
-
-// Update New Information Data
 const updateNewInfoData = (updatedNewInfo) => {
     console.log("Received updatedNewInfo:", updatedNewInfo);
 
@@ -855,7 +862,8 @@ const updateNewInfoData = (updatedNewInfo) => {
         Nouvel_equipement: updatedNewInfo[0]?.detail || "",
         Nouvelle_addresse: updatedNewInfo[1]?.detail || "",
         Nouveau_numTel: updatedNewInfo[2]?.detail || "",
-        Commentaire: updatedNewInfo[3]?.detail || "",
+        Commentaire: updatedNewInfo[3]?.comportement || "",
+        Commentaire_facultatif: updatedNewInfo[4]?.detail || "", // Ensure mapping for "Commentaire facultatif"
     };
 
     console.log("Updated formData.new_info:", formData.value.new_info);
@@ -865,6 +873,7 @@ const updateNewInfoData = (updatedNewInfo) => {
 // Toggle Client Availability
 const setClientUnavailable = () => {
     isUnavailable.value = !isUnavailable.value;
+    formData.value.start_time = new Date().toISOString(); 
 
     if (!isUnavailable.value) {
         // Reset reason and status when toggling off
@@ -1007,6 +1016,7 @@ const confirmAndScheduleRendezvous = () => {
     // Update the formData with rendezvous details and set the status to 2
     formData.value.rendezvous_details = appointment.value.date.toISOString(); // Format the date in ISO format
     formData.value.status = 2; // Status set to 2 for rendez-vous scheduled
+    formData.value.end_time = new Date().toISOString();
 
     console.log("Updated formData with rendez-vous:", formData.value);
 
@@ -1038,18 +1048,22 @@ const confirmAndScheduleRendezvous = () => {
 
 const handleSubmitAndPost = async (status, reason = "") => {
     try {
-        formData.value.agent = parseInt(agent.value, 10); // Ensure agent is an integer
+        formData.value.agent = String(agent.value); // Ensure agent is an integer
         formData.value.status = status;
         formData.value.refus_motif = reason;
-        formData.value.day = new Date().toISOString();
-
+        formData.value.day = new Date().toISOString().split("T")[0];
+        formData.value.taille_foyer = foyerData.value.taille_foyer;
 
         const formattedData = validateAndFormatFormData(formData.value);
         console.log("Formatted Data Sent to Backend:", JSON.stringify(formattedData, null, 2));
 
         const response = await axios.post("http://127.0.0.1:8000/submit", formattedData);
-        console.log('submitted', formattedData)
+        console.log('submitted', formattedData);
         console.log("Form submitted successfully:", response.data);
+        resetProgress();
+        updateProgressSidebar();
+        resetFormData();
+        isUnavailable.value = false; // Reset isUnavailable to false
 
         toast.add({
             severity: "success",
@@ -1057,6 +1071,8 @@ const handleSubmitAndPost = async (status, reason = "") => {
             detail: "Formulaire soumis avec succès.",
             life: 3000,
         });
+        window.location.href = "/form";
+
     } catch (error) {
         console.error("Submission error:", error.response?.data || error.message);
         toast.add({
@@ -1069,6 +1085,8 @@ const handleSubmitAndPost = async (status, reason = "") => {
 };
 
 const validateAndFormatFormData = (data) => {
+    console.log("formData.taille_foyer:", data.taille_foyer);
+
     return {
         ...data,
         dynamic_answers: data.dynamic_answers.map(({ id_qst, question, answer }) => ({
@@ -1078,9 +1096,9 @@ const validateAndFormatFormData = (data) => {
         })),
         no_foyer: parseInt(data.no_foyer) || 0,
         interlocuteur_nom: String(data.interlocuteur_nom || ""),
-        taille_foyer: parseInt(data.taille_foyer) || 0,
-        start_time: new Date(data.start_time).toISOString(),
-        end_time: new Date(data.end_time).toISOString(),
+        taille_foyer: parseInt(data.taille_foyer),
+        start_time: data.start_time ? new Date(data.start_time).toISOString() : null,
+        end_time: data.end_time ? new Date(data.end_time).toISOString() : null,
         status: parseInt(data.status) || 0,
         refus_motif: String(data.refus_motif || ""),
         rendezvous_details: data.rendezvous_details ? new Date(data.rendezvous_details).toISOString() : null,
@@ -1094,13 +1112,14 @@ const validateAndFormatFormData = (data) => {
             age: parseInt(indiv.age) || 0,
             statut: String(indiv.statut || ""),
             activite: String(indiv.activite || ""),
+            emplacement:String(indiv.emplacement || ""),
         })),
         invites: (data.invites || []).map((invite) => ({
             no_foyer: parseInt(invite.no_foyer) || 0,
             prenom: String(invite.prenom || ""),
-            age: parseInt(invite.age) || 0,
+            age: String(invite.age || ""),
             sex: String(invite.sex || ""),
-            emplacement: String(invite.emplacement || ""),
+            emplacement_TV: String(invite.emplacement_TV || ""),
         })),
         postes: Array.isArray(data.postes)
             ? data.postes.map((poste) => ({
@@ -1120,8 +1139,10 @@ const validateAndFormatFormData = (data) => {
             Nouvelle_addresse: String(data.new_info.Nouvelle_addresse || ""),
             Nouveau_numTel: String(data.new_info.Nouveau_numTel || ""),
             Commentaire: String(data.new_info.Commentaire || ""),
+            Commentaire_facultatif: String(data.new_info.Commentaire_facultatif	 || ""),
+
         },
-        agent: parseInt(agent.value) ,
+        agent: String(agent.value),
     };
 };
 const resetFormData = () => {
@@ -1133,15 +1154,12 @@ const resetFormData = () => {
         postes: [],
         invites: [],
         dynamic_answers: [],
-        individus: []
+        individus: [],
+        new_info:[]
     });
 };
 
 const updateProgressSidebar = () => {
-    console.log("Updating Progress Sidebar...");
-    console.log("Answers before update:", answers.value);
-    console.log("Filtered Postes before update:", filteredPostes.value);
-    console.log("Filtered Members before update:", filteredMembers.value);
 
 
 
@@ -1156,9 +1174,7 @@ const updateProgressSidebar = () => {
     // Update members
     filteredMembers.value = formData.value.individus;
 
-    console.log("Answers after update:", answers.value);
-    console.log("Filtered Postes after update:", filteredPostes.value);
-    console.log("Filtered Members after update:", filteredMembers.value);
+
 
     // Force reactivity update
     answers.value = {};
@@ -1414,7 +1430,7 @@ button:hover {
     flex: 1;
     overflow: auto;
     min-width: 0;
-    padding: 2rem;
+    padding: 1.5rem;
 }
 
 .dashboard-sidebar-right {
@@ -1506,6 +1522,45 @@ button:hover {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 0.5rem;
+}
+
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.menu-button {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.company-logo {
+    max-width: 58px;
+    height: auto;
+    object-fit: contain;
+}
+
+.sidebar-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+}
+
+.objectives-section {
+    margin-top: 1rem;
+}
+
+.section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 1rem;
 }
 
 .guest-name {
@@ -2196,6 +2251,127 @@ button:hover {
 @media (max-width: 768px) {
     .agent-stats-drawer {
         width: 100% !important;
+    }
+}
+
+.unavailable-reason {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-top: 1rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e2e8f0;
+    animation: slideDown 0.3s ease-out;
+}
+
+.reason-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.reason-selector label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #64748b;
+}
+
+.reason-dropdown {
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    font-size: 1rem;
+    color: #1e293b;
+    transition: all 0.2s ease;
+    width: 100%;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 1rem;
+    padding-right: 2.5rem;
+}
+
+.reason-dropdown:hover {
+    border-color: #cbd5e1;
+    background-color: #ffffff;
+}
+
+.reason-dropdown:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    background-color: #ffffff;
+}
+
+.reason-dropdown option {
+    padding: 0.5rem;
+    font-size: 1rem;
+}
+
+:deep(.submit-button) {
+    width: 100%;
+    justify-content: center;
+    padding: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    transition: all 0.2s ease;
+}
+
+:deep(.submit-button:hover) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(34, 197, 94, 0.2);
+}
+
+:deep(.submit-button:active) {
+    transform: translateY(0);
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Dark mode support */
+:deep(.dark) .unavailable-reason {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+:deep(.dark) .reason-dropdown {
+    background-color: #0f172a;
+    border-color: #334155;
+    color: #e2e8f0;
+}
+
+:deep(.dark) .reason-dropdown:hover {
+    border-color: #475569;
+    background-color: #1e293b;
+}
+
+:deep(.dark) .reason-selector label {
+    color: #94a3b8;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+    .unavailable-reason {
+        padding: 1rem;
+    }
+
+    .reason-dropdown {
+        font-size: 0.875rem;
     }
 }
 </style>

@@ -1,65 +1,62 @@
 <template>
   <div class="guest-table-container">
-    <!-- Editable DataTable -->
     <DataTable :value="guests" class="editable-datatable" :showGridlines="false">
       <Column field="prenom" header="Prénom">
         <template #body="slotProps">
           <InputText 
             v-model="slotProps.data.prenom" 
             placeholder="Entrez Le prénom" 
-            class="custom-input"
+            class="form-input"
             @input="autoSave"
           />
         </template>
       </Column>
       <Column field="age" header="Age">
         <template #body="slotProps">
-          <Select 
+          <Select
             v-model="slotProps.data.age" 
             :options="tranche_age"
-            class="custom-input"
-            @input="autoSave"
-            placeholder="Entrez l'âge"
+            class="form-input"
+            placeholder="Âge"
             optionLabel="label"
             optionValue="value"
+            @change="autoSave"
           />
         </template>
       </Column>
-      
       <Column field="sex" header="Sexe">
         <template #body="slotProps">
           <Select
             v-model="slotProps.data.sex"
             :options="sexOptions"
-            placeholder="Entrez Sex"
+            placeholder="Sexe"
             optionLabel="label"
             optionValue="value"
-            class="custom-dropdown"
+            class="form-input"
             @change="autoSave"
           />
         </template>
       </Column>
-      <Column field="emplacement" header="Emplacement de la TV">
+      <Column field="emplacement_TV" header="Emplacement TV">
         <template #body="slotProps">
-          <Select 
-            v-model="slotProps.data.tvLocation" 
-            placeholder="Emplacement TV " 
+          <Select
+            v-model="slotProps.data.emplacement_TV" 
+            placeholder="Emplacement" 
             :options="emplacementOptions"
             optionLabel="label"
             optionValue="value"
-            class="custom-dropdown"
-            @input="autoSave"
+            class="form-input"
+            @change="autoSave"
           />
         </template>
       </Column>
     </DataTable>
 
-    <!-- Add Guest Button -->
     <div class="flex justify-end mt-4">
       <Button 
         label="Ajout Invité" 
         icon="pi pi-plus" 
-        class="custom-button" 
+        class="add-button" 
         @click="addGuest" 
       />
     </div>
@@ -71,9 +68,9 @@ import { ref, watch, onMounted } from "vue";
 import DataTable from "primevue/datatable";
 import Column from "primevue/column";
 import InputText from "primevue/inputtext";
-import InputNumber from "primevue/inputnumber";
 import Button from "primevue/button";
 import Select from 'primevue/select';
+
 const props = defineProps({
   initialGuests: {
     type: Array,
@@ -82,60 +79,67 @@ const props = defineProps({
 });
 
 const tranche_age = [
-{ label: "5-14 ans", value: "5-14 ans" },
-{ label: "15-24 ans", value: "15-24 ans" },
-{ label: "25-34 ans", value: "25-34 ans" },
-{ label: "35-44 ans", value: "35-44 ans" },
-{ label: "45-54 ans", value: "45-54 ans" },
-{ label: "55ans et plus", value: "55ans et plus" },
-]
-const emplacementOptions = [
-  { label: "Salon", value: "Salon" },
-  { label: "Séjour", value: "Séjour" },
-  { label: "Chambre à coucher", value: "Chambre à coucher" },
-  { label: "Cuisine", value: "Cuisine" },
-  { label: "Autre chambre", value: "Autre chambre" },
+  { label: "5-14 ans", value: "5-14 ans" },
+  { label: "15-24 ans", value: "15-24 ans" },
+  { label: "25-34 ans", value: "25-34 ans" },
+  { label: "35-44 ans", value: "35-44 ans" },
+  { label: "45-54 ans", value: "45-54 ans" },
+  { label: "55ans et plus", value: "55ans et plus" },
 ];
+
+const emplacementOptions = [
+  { label: "Séjour", value: 1 },
+  { label: "Salon", value: 3 },
+  { label: "Chambre à coucher", value: 4 },
+  { label: "Autre chambre", value: 5 },
+  { label: "Cuisine", value: 7 },
+  { label: "Supprimé", value: 9 },
+  { label: "Sorti", value: 10 },
+  { label: "Absent", value: 11 },
+];
+
+const sexOptions = [
+  { label: "Homme", value: "Homme" },
+  { label: "Femme", value: "Femme" },
+];
+
 const emit = defineEmits(["update-guests"]);
 const guests = ref([...props.initialGuests]);
 
-const sexOptions = [
-  { label: "Male", value: "Male" },
-  { label: "Femelle", value: "Femelle" },
-];
-
 const addGuest = () => {
   const newGuest = {
-    id: guests.value.length + 1,
     prenom: "",
-    age: null,
+    age: "",
     sex: "",
-    emplacement: "",
+    emplacement_TV: "",
   };
   guests.value.push(newGuest);
   autoSave();
 };
 
 const autoSave = () => {
-  emit("update-guests", guests.value);
-  console.log("Guest data auto-saved:", guests.value);
+  emit("update-guests", [...guests.value]);
 };
 
-watch(
-  () => props.initialGuests,
-  (newGuests) => {
-    guests.value = [...newGuests];
-  },
-  { deep: true }
-);
-
+// Initialize with props or add first guest
 onMounted(() => {
   if (guests.value.length === 0) {
     addGuest();
-  } else {
-    autoSave();
   }
 });
+
+// Watch for prop changes
+watch(() => props.initialGuests, (newValue) => {
+  if (JSON.stringify(newValue) !== JSON.stringify(guests.value)) {
+    guests.value = [...newValue];
+    console.log()
+  }
+}, { deep: true });
+
+// Watch for changes in guests array
+watch(guests, () => {
+  autoSave();
+}, { deep: true });
 </script>
 
 <style scoped>
@@ -146,72 +150,88 @@ onMounted(() => {
   padding: 1rem;
 }
 
-/* DataTable Styling */
-:deep(.p-datatable) {
-  border-radius: 0.75rem;
+/* Unified form input styling */
+:deep(.form-input) {
+  width: 100% !important;
+  min-width: 20px !important;
+  font-family: inherit !important;
+  font-size: 0.875rem !important;
 }
 
-:deep(.p-datatable .p-datatable-thead > tr > th) {
-  background-color: transparent;
-  border-bottom: 2px solid #e2e8f0;
-  color: #475569;
-  font-weight: 600;
-  font-size: 0.875rem;
+:deep(.p-dropdown),
+:deep(.p-inputtext) {
+  width: 100% !important;
+  min-width: 20px !important;
+  padding: 0.5rem 0.75rem !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 0.5rem !important;
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+  font-size: 0.875rem !important;
+  transition: all 0.2s ease !important;
+  height: 38px !important;
 }
 
-:deep(.p-datatable .p-datatable-tbody > tr > td) {
-  border: none;
+:deep(.p-dropdown:hover),
+:deep(.p-inputtext:hover) {
+  border-color: #4ade80 !important;
 }
 
-:deep(.p-datatable .p-datatable-tbody > tr:hover) {
-  background-color: #f8fafc;
-}
-
-/* Input Styling */
-.custom-input {
-  width: 100%;
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
-  color: #1e293b;
-  background-color: #ffffff;
-  transition: all 0.2s ease;
-}
-
-.custom-input:focus {
-  border-color: #4ade80;
-  box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.1);
-  outline: none;
-}
-
-.custom-input::placeholder {
-  color: #334155;
-}
-
-/* Dropdown Styling */
-:deep(.custom-dropdown) {
-  width: 100%;
-}
-
-:deep(.p-dropdown) {
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
-}
-
-:deep(.p-dropdown:hover) {
-  border-color: #4ade80;
-}
-
-:deep(.p-dropdown:not(.p-disabled).p-focus) {
-  border-color: #4ade80;
-  box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.1);
+:deep(.p-dropdown:focus),
+:deep(.p-inputtext:focus) {
+  outline: none !important;
+  border-color: #4ade80 !important;
+  box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.1) !important;
 }
 
 :deep(.p-dropdown-panel) {
-  border-radius: 0.5rem;
+  border-radius: 0.5rem !important;
+  border: 1px solid #e2e8f0 !important;
+  min-width: 20px !important;
 }
 
-/* Button Styling */
-.custom-button {
+:deep(.p-dropdown-items-wrapper) {
+  max-height: 200px !important;
+}
+
+:deep(.p-dropdown-item) {
+  padding: 0.25rem 0.5rem !important;
+  color: #1e293b !important;
+  font-size: 0.875rem !important;
+}
+
+:deep(.p-dropdown-item:hover) {
+  background-color: #f1f5f9 !important;
+}
+
+:deep(.p-placeholder) {
+  color: #64748b !important;
+}
+
+/* Table styling */
+:deep(.p-datatable) {
+  border-radius: 0.75rem !important;
+}
+
+:deep(.p-datatable .p-datatable-thead > tr > th) {
+  background-color: transparent !important;
+  border-bottom: 2px solid #e2e8f0 !important;
+  color: #475569 !important;
+  font-weight: 600 !important;
+  padding: 0.75rem 1rem !important;
+}
+
+:deep(.p-datatable .p-datatable-tbody > tr > td) {
+  border: none !important;
+  padding: 0.75rem 0.5rem !important;
+}
+
+:deep(.p-datatable-tbody > tr > td) {
+  min-width: 20px !important;
+}
+
+/* Button styling */
+.add-button {
   background-color: #4ade80 !important;
   border: none !important;
   color: #ffffff !important;
@@ -221,30 +241,12 @@ onMounted(() => {
   transition: all 0.2s ease !important;
 }
 
-.custom-button:hover {
+.add-button:hover {
   background-color: #22c55e !important;
-  transform: translateY(-1px);
+  transform: translateY(-1px) !important;
 }
 
-.custom-button:active {
-  transform: translateY(0);
-}
-
-/* InputNumber Styling */
-:deep(.p-inputnumber-input) {
-  width: 100%;
-  padding: 0.625rem 0.875rem !important;
-  border: 1px solid #e2e8f0 !important;
-  border-radius: 0.5rem !important;
-  font-size: 0.875rem !important;
-  color: #1e293b !important;
-}
-
-:deep(.p-inputnumber-input:focus) {
-  border-color: #4ade80 !important;
-  box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.1) !important;
-}
-:deep(.p-inputtext.placeholder){
-  color:#334155 !important;
+.add-button:active {
+  transform: translateY(0) !important;
 }
 </style>

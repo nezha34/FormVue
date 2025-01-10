@@ -69,12 +69,18 @@ const emit = defineEmits(["update-etat", "update-activite", "update-poste-data"]
 const posteData = ref([...props.postes]);
 
 // Define options
+
 const emplacementOptions = [
-  { label: "Salon", value: 1 },
-  { label: "Séjour", value: 2 },
-  { label: "Chambre à coucher", value: 3 },
-  { label: "Cuisine", value: 4 },
+  { label: "Séjour", value: 1 },
+  { label: "Salon", value: 3 },
+
+  { label: "Chambre à coucher", value: 4 },
   { label: "Autre chambre", value: 5 },
+  { label: "Cuisine", value: 7 },
+  { label: "Supprimé", value: 9 },
+  { label: "Sorti", value: 10 },
+  { label: "Absent", value: 11 },
+
 ];
 
 const etatOptions = [

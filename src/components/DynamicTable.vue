@@ -4,7 +4,7 @@
       :value="data || []"
       editMode="cell"
       @cell-edit-complete="onCellEditComplete"
-      tableStyle="min-width: 30rem"
+      tableStyle="min-width: 10rem"
     >
       <!-- First Column with Dynamic Chips -->
       <Column :field="columns[0]?.field" :header="columns[0]?.header" :style="{ width: 'auto', whiteSpace: 'nowrap'  }">
@@ -66,6 +66,18 @@
           />
         </template>
       </Column>
+            <!-- Emplacement Column -->
+            <Column field="Emplacement" header="Emplacement">
+        <template #body="slotProps">
+          <Select
+            v-model="slotProps.data.emplacement"
+            :options="emplacementOptions"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Select"
+          />
+        </template>
+      </Column>
     </DataTable>
   </div>
 </template>
@@ -91,6 +103,10 @@ const props = defineProps({
     type: String,
     required: true,
   },
+  posteData: {
+    type: Array,
+    default: () => [],
+  }
 });
 
 const emit = defineEmits(["update"]);
@@ -98,13 +114,22 @@ const emit = defineEmits(["update"]);
 const activiteOptions = [
   { label: "Ne Regarde Pas TV", value: "Ne Regarde Pas TV" },
   { label: "Regarder Chaîne TV", value: "Regarder Chaîne TV" },
-  { label: "Regarder(DVD/VCD)", value: "Regarder(DVD/VCD)" },
   { label: "Jouer Avec Console De Jeux", value: "Jouer Avec Console De Jeux" },
   { label: "Regarder Magnétoscope", value: "Regarder Magnétoscope" },
-  { label: "N'est Pas Devant La télé", value: "N'est Pas Devant La télé" },
   { label: "NSP", value: "NSP" },
   { label: "Absent", value: "Absent" },
   { label: "Sorti", value: "Sorti" },
+];
+const emplacementOptions = [
+  { label: "Séjour", value: 1 },
+  { label: "Salon", value: 3 },
+  { label: "Chambre à coucher", value: 4 },
+  { label: "Autre chambre", value: 5 },
+  { label: "Cuisine", value: 7 },
+  { label: "Supprimé", value: 9 },
+  { label: "Sorti", value: 10 },
+  { label: "Absent", value: 11 },
+
 ];
 
 const statutOptions = [
@@ -127,6 +152,11 @@ watch(
         // Automatically set activite to "Absent" for statut = 2 or 4
         row.activite = "Absent";
       }
+      if (props.posteData.length > 0) {
+        console.log('emplacement',row.emplacement);
+        row.emplacement = props.posteData[0].emplacement ?? row.emplacement;
+      }
+
       return row;
     });
 

@@ -42,8 +42,8 @@ export default {
             }
 
             const mockUsers = [
-                { id: 1, username: 'agent1', password: '1234', role: 'agent', name: '1' },
-                { id: 2, username: 'agent2', password: '1234', role: 'agent', name: 'Agent 2' },
+                { id: 1, username: 'kamelia', password: '1234', role: 'agent', name: 'kamelia' },
+                { id: 2, username: 'Fati', password: '1234', role: 'agent', name: 'kamelia' },
                 { id: 3, username: 'admin', password: 'admin123', role: 'admin', name: 'Admin' },
             ];
             console.log("Mock Users:", mockUsers);
@@ -64,8 +64,8 @@ export default {
                     window.location.href = '/Admin';
                 } else {
                     // Save the numeric ID instead of username
-                    localStorage.setItem('agentId', user.id.toString());
-                    console.log("Agent ID saved to localStorage:", user.id);
+                    localStorage.setItem('agentId', user.name.toString());
+                    console.log("Agent ID saved to localStorage:", user.name);
                     window.location.href = '/form'; // Redirect to the form
                 }
             } else {

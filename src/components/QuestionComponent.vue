@@ -2,7 +2,7 @@
   <div class="question-container">
     <!-- Question Label -->
     <div class="question-wrapper">
-      <label :for="`question-${question.id}`" class="question-label">
+      <label :for="question -` ${ question.id }`" class="question-label">
         {{ question.question }}
       </label>
 
@@ -134,7 +134,7 @@ export default {
     };
 
     const handlePosteDataUpdate = (updatedPostes) => {
-      console.log('update answer',updatedPostes)
+      console.log('please', updatedPostes)
       emit("update-answer", {
         id_qst: question.value.id,
         question: question.value.question,
@@ -143,9 +143,7 @@ export default {
     };
 
     const handleEtatChange = (newEtat) => {
-      console.log('update etat',newEtat)
-
-      emit("update-answer", { id_qst: props.question.id, question: props.question.question, answer: newEtat });
+      console.log('hiola')
     };
 
     const updateGuestData = (updatedGuests) => {
@@ -155,20 +153,26 @@ export default {
         no_foyer: guest.no_foyer || props.formData.no_foyer,
         nom: guest.nom || "",
         prenom: guest.prenom || "",
-        age: parseInt(guest.age) || 0,
+        age: String(guest.age) || "",
         sex: guest.sex || "",
-        emplacement: guest.emplacement || "",
+        emplacement_TV: guest.emplacement_TV || "",
       }));
     };
 
     const handleActiviteUpdate = (updatedPostes) => {
-      console.log('hey hzndleactivite', updatedPostes)
+      console.log('hey hzndleactivite', updatedPostes);
+
       const isTVInactive = updatedPostes.some((poste) =>
         ["OFF", "Supprimé", "En panne"].includes(poste.etat)
       );
 
       if (isTVInactive) {
         emit("update-members-activity", "Ne Regarde Pas TV");
+        emit("update-answer", {
+          id_qst: question.value.id,
+          question: question.value.question,
+          answer: updatedPostes,
+        });
       }
     };
 
@@ -178,8 +182,8 @@ export default {
       );
 
       if (selectedMember) {
-        props.formData.interlocuteur_nom = `${selectedMember.nom} ${selectedMember.prenom}`;
-        props.formData.interlocuteur_touche = `${selectedMember.num_touche}`;
+        props.formData.interlocuteur_nom = `${ selectedMember.nom } ${ selectedMember.prenom }`;
+        props.formData.interlocuteur_touche = `${ selectedMember.num_touche }`;
       } else {
         props.formData.interlocuteur_nom = "";
         props.formData.interlocuteur_touche = "";
@@ -203,7 +207,7 @@ export default {
       localAnswer,
       updateAnswer,
       emitAnswer,
-
+      handleEtatChange,
       updateInterlocuteurNom,
       updateGuestData,
       handlePosteDataUpdate,
@@ -321,7 +325,7 @@ export default {
 
 /* PrimeVue Component Overrides */
 :deep(.p-inputtext),
-:deep(.p-dropdown),
+:deep(.p-select),
 :deep(.p-inputnumber-input) {
   width: 100%;
   border-radius: 0.375rem !important;
