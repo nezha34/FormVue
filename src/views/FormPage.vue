@@ -26,10 +26,10 @@
         <main v-if="!foyerId" class="dashboard-main">
             <Accueil @start-calls="visible = true" v-model="visible" />
         </main>
-        
+
         <!-- Main Content -->
         <main v-else class="dashboard-main">
-            <Banner/>
+            <Banner />
 
             <div class="main-content">
                 <!-- Header with Unavailability Button -->
@@ -142,6 +142,7 @@
                         <TabList>
                             <Tab value="0">Foyer</Tab>
                             <Tab value="1">Individu</Tab>
+                            <Tab value="3">Conso Web</Tab>
                             <Tab value="2">Information Supplémentaires</Tab>
                         </TabList>
                         <TabPanels>
@@ -209,7 +210,7 @@
                                                         <!-- Render the question with ID '7' only once -->
                                                         <QuestionComponent
                                                             v-if="questionsTree.permanentChildren && questionsTree.permanentChildren.some(child => child.id === '7')"
-                                                            :question="questionsTree.permanentChildren.find(child => child.id === '7')"
+                                                            :question="questionsTree.permanentChildren.find(child => child.scope === 'individu')"
                                                             :answers="answers" :filteredMembers="filteredMembers"
                                                             :filteredPostes="filteredPostes" :formData="formData"
                                                             @update-answer="setAnswer" />
@@ -245,6 +246,52 @@
 
                                                 <NewInfoSection :infoRows="infoRows" @update="updateNewInfoData" />
 
+                                            </div>
+                                            <div class="actions">
+                                                <Button label="Back" severity="secondary" icon="pi pi-arrow-left"
+                                                    @click="goToTab('1')" />
+                                                <Button label="Submit" icon="pi pi-check" class="p-button-success"
+                                                    :disabled="!formData.end_time" @click="handleSubmitAndPost" />
+                                            </div>
+
+                                        </div>
+                                    </template>
+                                </Card>
+                            </TabPanel>
+
+                            <TabPanel value="3">
+                                <template #header>
+                                    <div class="tab-header">
+                                        <i class="pi pi-file"></i>
+                                        <span>Conso Web</span>
+                                    </div>
+                                </template>
+                                <Card class="form-card">
+
+                                    <template #content>
+
+                                        <div class="form-content">
+                                            <div>
+                                                <!-- Step 1: Member Selection -->
+                                                <h2>Select Qui est Present</h2>
+                                                <div>
+                                                    <label v-for="member in filteredMembers" :key="member.id_indiv"
+                                                        style="display: block; margin-bottom: 0.5rem;">
+                                                        <input type="checkbox" :value="member"
+                                                            v-model="selectedMembers" />
+                                                        {{ member.nom }} {{ member.prenom }} ({{ member.age }} ans)
+                                                    </label>
+                                                </div>
+
+                                                <hr />
+
+                                                <!-- Step 2: Pass only the selected people to ConsoleWeb -->
+                                                <ConsoleWeb v-model="surveyResponses" :members="selectedMembers"
+                                                    :consoleTree="consoTree" />
+
+                                                <button @click="handleSubmitAllAnswers">
+                                                    Submit All
+                                                </button>
                                             </div>
                                             <div class="actions">
                                                 <Button label="Back" severity="secondary" icon="pi pi-arrow-left"
@@ -446,12 +493,14 @@ import AgentStatsDrawer from '@/components/AgentStatsDrawer.vue';
 import Accueil from '@/components/Accueil.vue';
 import 'primeicons/primeicons.css'
 
-
 import Banner from '@/components/Banner.vue';
+import ConsoleWeb from '@/components/consoleWeb.vue';
 const agent = ref(null); // Initialize as a reactive variable
 const storedAgentId = localStorage.getItem('agentId');
 agent.value = String(storedAgentId)
-console.log('agent',agent.value)
+console.log('agent', agent.value)
+const surveyResponses = ref([]);
+const selectedMembers = ref([]);
 
 onMounted(() => {
     if (storedAgentId) {
@@ -476,6 +525,7 @@ const foyerData = ref({});
 const filteredMembers = ref([]);
 const filteredPostes = ref([]);
 const questionsTree = ref({});
+const consoTree = ref({});
 const answers = ref({});
 const formData = ref({
     no_foyer: foyerData.no_foyer,
@@ -497,7 +547,7 @@ const formData = ref({
         Nouvelle_addresse: "",
         Nouveau_numTel: "",
         Commentaire: "",
-        Commentaire_facultatif:"",
+        Commentaire_facultatif: "",
     },
     agent: agent.value,
     day: new Date().toISOString().split("T")[0], // Initializes with today's date in YYYY-MM-DD format
@@ -520,14 +570,23 @@ const fetchAgentStats = async () => {
             if (data.length > 0) {
                 // Aggregate the data for today's stats
                 const aggregatedStats = data.reduce(
-                    (acc, stat) => ({
-                        ...acc,
-                        total_foyers: acc.total_foyers + stat.total_foyers,
-                        completed_calls: acc.completed_calls + stat.completed_calls,
-                        rendezvous_calls: acc.rendezvous_calls + stat.rendezvous_calls,
-                        unreached_calls: acc.unreached_calls + stat.unreached_calls,
-                        rejected_calls: acc.rejected_calls + stat.rejected_calls,
-                    }),
+                    (acc, stat) => {
+                        // Merge completed_by_taille dictionaries
+                        const mergedCompletedByTaille = { ...acc.completed_by_taille };
+                        for (const [taille, count] of Object.entries(stat.completed_by_taille || {})) {
+                            mergedCompletedByTaille[taille] = (mergedCompletedByTaille[taille] || 0) + count;
+                        }
+
+                        return {
+                            ...acc,
+                            total_foyers: acc.total_foyers + stat.total_foyers,
+                            completed_calls: acc.completed_calls + stat.completed_calls,
+                            rendezvous_calls: acc.rendezvous_calls + stat.rendezvous_calls,
+                            unreached_calls: acc.unreached_calls + stat.unreached_calls,
+                            rejected_calls: acc.rejected_calls + stat.rejected_calls,
+                            completed_by_taille: mergedCompletedByTaille,
+                        };
+                    },
                     {
                         agent_id: agent.value,
                         day: today,
@@ -536,6 +595,7 @@ const fetchAgentStats = async () => {
                         rendezvous_calls: 0,
                         unreached_calls: 0,
                         rejected_calls: 0,
+                        completed_by_taille: {}, // Initialize as an empty object
                     }
                 );
 
@@ -550,6 +610,7 @@ const fetchAgentStats = async () => {
                     rendezvous_calls: 0,
                     unreached_calls: 0,
                     rejected_calls: 0,
+                    completed_by_taille: {}, // Default as empty object
                 };
             }
 
@@ -563,6 +624,7 @@ const fetchAgentStats = async () => {
     }
 };
 
+// Fetch stats on component mount and when the drawer becomes visible
 onMounted(fetchAgentStats);
 watch(visible, (newValue) => {
     if (newValue) {
@@ -604,13 +666,13 @@ const updateMembersActivity = (activity) => {
 };
 const setStartTime = () => {
     formData.value.start_time = new Date().toISOString();
-    console.log("start",formData.value.start_time);
+    console.log("start", formData.value.start_time);
 };
 
 // Method to capture end time
 const setEndTime = () => {
     formData.value.end_time = new Date().toISOString();
-    console.log("fin",formData.value.end_time);
+    console.log("fin", formData.value.end_time);
 
 };
 // Columns for Individuals Table
@@ -774,7 +836,9 @@ const fetchFoyerData = async () => {
         // Fetch questions tree
         const questionsResponse = await axios.get('http://127.0.0.1:8000/questions-tree');
         questionsTree.value = reactive(questionsResponse.data);
-
+        const consoResponse = await axios.get('http://127.0.0.1:8000/consoleTree');
+        consoTree.value = reactive(consoResponse.data);
+        console.log('consoweb', consoTree)
         // Update Form Data
         formData.value.no_foyer = foyerId.value;
         formData.value.new_info.no_foyer = foyerId.value;
@@ -830,7 +894,7 @@ const handleIndividuUpdate = (updatedIndividus) => {
         age: parseInt(indiv.age) || 0,
         statut: indiv.statut || "",
         activite: indiv.activite || "",
-        emplacement: indiv.emplacement|| "",
+        emplacement: indiv.emplacement || "",
     }));
 
 };
@@ -873,7 +937,7 @@ const updateNewInfoData = (updatedNewInfo) => {
 // Toggle Client Availability
 const setClientUnavailable = () => {
     isUnavailable.value = !isUnavailable.value;
-    formData.value.start_time = new Date().toISOString(); 
+    formData.value.start_time = new Date().toISOString();
 
     if (!isUnavailable.value) {
         // Reset reason and status when toggling off
@@ -1112,7 +1176,7 @@ const validateAndFormatFormData = (data) => {
             age: parseInt(indiv.age) || 0,
             statut: String(indiv.statut || ""),
             activite: String(indiv.activite || ""),
-            emplacement:String(indiv.emplacement || ""),
+            emplacement: String(indiv.emplacement || ""),
         })),
         invites: (data.invites || []).map((invite) => ({
             no_foyer: parseInt(invite.no_foyer) || 0,
@@ -1139,7 +1203,7 @@ const validateAndFormatFormData = (data) => {
             Nouvelle_addresse: String(data.new_info.Nouvelle_addresse || ""),
             Nouveau_numTel: String(data.new_info.Nouveau_numTel || ""),
             Commentaire: String(data.new_info.Commentaire || ""),
-            Commentaire_facultatif: String(data.new_info.Commentaire_facultatif	 || ""),
+            Commentaire_facultatif: String(data.new_info.Commentaire_facultatif || ""),
 
         },
         agent: String(agent.value),
@@ -1155,7 +1219,7 @@ const resetFormData = () => {
         invites: [],
         dynamic_answers: [],
         individus: [],
-        new_info:[]
+        new_info: []
     });
 };
 

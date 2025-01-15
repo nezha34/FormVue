@@ -10,7 +10,7 @@
       <div v-if="question.type" class="input-wrapper">
         <!-- Boolean (Yes/No Buttons) -->
         <div v-if="question.type === 'boolean'" class="button-group">
-          <Button v-for="option in question.options || ['Oui', 'Non']" :key="option" :label="option"
+          <Button v-for="option in question.options.value || ['Oui', 'Non']" :key="option" :label="option"
             :class="['custom-button', { 'selected': localAnswer === option }]" @click="updateAnswer(option)" />
         </div>
 
@@ -32,8 +32,8 @@
           </select>
         </div>
         <!-- Special Type with TVQuestionnaire -->
-        <div v-else-if="question.type === 'special' && question.children?.length > 0" class="tv-questionnaire">
-          <TVQuestionnaire v-if="question.type === 'special' && filteredPostes.length > 0" :postes="filteredPostes"
+        <div v-else-if="question.type === 'table' && question.children?.length > 0" class="tv-questionnaire">
+          <TVQuestionnaire v-if="question.type === 'table' && filteredPostes.length > 0" :postes="filteredPostes"
             :childOptions="question.children" @update-etat="handleEtatChange" @update-activite="handleActiviteUpdate"
             @update-poste-data="handlePosteDataUpdate" />
         </div>
@@ -41,12 +41,12 @@
     </div>
 
     <!-- Special Case: GuestTable -->
-    <div v-if="question.id === '7' && showChildren" class="guest-table-wrapper">
+    <div v-if="question.scope === 'individu' && showChildren" class="guest-table-wrapper">
       <GuestTable :initialGuests="formData.invites" @update-guests="updateGuestData" />
     </div>
 
     <!-- Recursive Child Questions -->
-    <div v-if="hasChildren && showChildren && question.id !== '7'" class="child-questions">
+    <div v-if="hasChildren && showChildren && question.scope !== 'ffoyer'" class="child-questions">
       <QuestionComponent v-for="child in question.children" :key="child.id" :question="child" :answers="answers"
         :formData="formData" :spacing="spacing + 10" @update-answer="$emit('update-answer', $event)" />
     </div>

@@ -68,6 +68,7 @@
     type: Boolean,
     required: true,
   },
+  
 });
 const emit = defineEmits(['update:modelValue']);
 const showDrawer = () => {

@@ -1,23 +1,11 @@
 <template>
-    <Drawer
-        :visible="visible"
-        :modal="false"
-        position="left"
-        class="agent-stats-drawer"
-        :style="{ width: '400px' }"
-        @update:visible="(val) => $emit('update:visible', val)"
-    >
+    <Drawer :visible="visible" :modal="false" position="left" class="agent-stats-drawer" :style="{ width: '400px' }"
+        @update:visible="(val) => $emit('update:visible', val)">
         <template #container="{ closeCallback }">
             <div class="drawer-content">
                 <!-- Close Button -->
-                <Button
-                    type="button"
-                    @click="() => $emit('update:visible', false)" 
-                    icon="pi pi-times"
-                    rounded
-                    outlined
-                    class="close-button"
-                />
+                <Button type="button" @click="() => $emit('update:visible', false)" icon="pi pi-times" rounded outlined
+                    class="close-button" />
 
                 <!-- Header -->
                 <div class="drawer-header">
@@ -28,9 +16,8 @@
                 <div v-if="agentStats" class="drawer-body">
                     <!-- Stats Summary -->
                     <div class="stats-section">
-                        <h4 class="stats-title">Stats Pour User {{ agentStats.agent_id }}</h4>
+                        <h4 class="stats-title">Stats Pour {{ agentStats.agent_id }}</h4>
                         <div class="stats-summary">
-                            <h5>Résumé</h5>
                             <div class="stats-grid">
                                 <div class="stat-item">
                                     <span class="stat-label">Date:</span>
@@ -40,14 +27,26 @@
                                     <span class="stat-label">Total Foyers:</span>
                                     <span class="stat-value">{{ agentStats.total_foyers }}</span>
                                 </div>
-                                <div class="stat-item">
-                                    <span class="stat-label">Appels Complétés:</span>
-                                    <span class="stat-value">{{ agentStats.completed_calls }}</span>
+                                <div class="stat-item" @click="toggleCompletedCalls">
+
+                                    <span class="stat-label">Appels réalisées:</span>
+                                    <span class="stat-value" :class="isCompletedCallsExpanded">{{
+                                        agentStats.completed_calls }}</span>
+
+                                    <div class="w-full">
+
+                                        <div v-if="isCompletedCallsExpanded" >
+                                            <div v-for="size in [1, 2, 3]" :key="size"
+                                                style="grid-template-columns: repeat(3, 1fr);">
+                                                <span class="stat-label">Groupe {{ size }}:</span>
+                                                <span class="stat-value">{{ agentStats.completed_by_taille[size] || 0
+                                                    }}</span>
+                                            </div>
+                                        </div>
+
+                                    </div>
                                 </div>
-                                <div class="stat-item">
-                                    <span class="stat-label">Appels Rendez-vous:</span>
-                                    <span class="stat-value">{{ agentStats.rendezvous_calls }}</span>
-                                </div>
+
                                 <div class="stat-item">
                                     <span class="stat-label">Appels Injoignables:</span>
                                     <span class="stat-value">{{ agentStats.unreached_calls }}</span>
@@ -67,16 +66,15 @@
                             Rendez-vous à venir
                         </h4>
                         <div class="appointments-list" v-if="agentStats.upcoming_rendezvous?.length">
-                            <div v-for="(rendezvous, index) in agentStats.upcoming_rendezvous" 
-                                 :key="index"
-                                 class="appointment-card"
-                            >
-                                <div class="appointment-header">             
-                                     
+                            <div v-for="(rendezvous, index) in agentStats.upcoming_rendezvous" :key="index"
+                                class="appointment-card">
+                                <div class="appointment-header">
+
                                     <span class="foyer-id">Foyer #
-                                        <a href="#" @click.prevent="selectFoyer(rendezvous.foyer_id)" class="foyer-link">
-                {{ rendezvous.foyer_id }}
-              </a></span>
+                                        <a href="#" @click.prevent="selectFoyer(rendezvous.foyer_id)"
+                                            class="foyer-link">
+                                            {{ rendezvous.foyer_id }}
+                                        </a></span>
                                     <span class="appointment-indicator"></span>
                                 </div>
                                 <div class="appointment-time">
@@ -102,7 +100,7 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits, watch, getCurrentInstance } from 'vue';
+import { defineProps, defineEmits, watch, getCurrentInstance, ref } from 'vue';
 import Drawer from 'primevue/drawer';
 import Button from 'primevue/button';
 import { useToast } from 'primevue/usetoast';
@@ -180,38 +178,41 @@ watch(
     },
     { immediate: true }
 );
-
+const isCompletedCallsExpanded = ref(false);
+const toggleCompletedCalls = () => {
+    isCompletedCallsExpanded.value = !isCompletedCallsExpanded.value;
+};
 
 const selectFoyer = async (foyerId) => {
-  console.log('Attempting to lock foyer:', foyerId);
-  console.log('Agent ID:', props.agentStats.agent_id);
+    console.log('Attempting to lock foyer:', foyerId);
+    console.log('Agent ID:', props.agentStats.agent_id);
 
-  try {
-    const response = await axios.patch(
-      `http://127.0.0.1:8000/foyers/${foyerId}/lock?agent_id=${props.agentStats.agent_id}`
-    );
-    console.log('Lock successful:', response.data);
+    try {
+        const response = await axios.patch(
+            `http://127.0.0.1:8000/foyers/${foyerId}/lock?agent_id=${props.agentStats.agent_id}`
+        );
+        console.log('Lock successful:', response.data);
 
-    emit('foyer-selected', foyerId);
-  } catch (error) {
-    if (error.response && error.response.status === 409) {
-      console.error('Conflict Error:', error.response.data);
-      toast.add({
-        severity: 'error',
-        summary: 'Error',
-        detail: 'Le foyer est verrouillé par un autre agent.',
-        life: 3000,
-      });
-    } else {
-      console.error('Unexpected Error:', error.response || error.message);
-      toast.add({
-        severity: 'error',
-        summary: 'Error',
-        detail: 'Échec de la sélection du foyer',
-        life: 3000,
-      });
+        emit('foyer-selected', foyerId);
+    } catch (error) {
+        if (error.response && error.response.status === 409) {
+            console.error('Conflict Error:', error.response.data);
+            toast.add({
+                severity: 'error',
+                summary: 'Error',
+                detail: 'Le foyer est verrouillé par un autre agent.',
+                life: 3000,
+            });
+        } else {
+            console.error('Unexpected Error:', error.response || error.message);
+            toast.add({
+                severity: 'error',
+                summary: 'Error',
+                detail: 'Échec de la sélection du foyer',
+                life: 3000,
+            });
+        }
     }
-  }
 };
 
 </script>
@@ -342,6 +343,7 @@ const selectFoyer = async (foyerId) => {
     background: #f8fafc;
     padding: 0;
 }
+
 .appointments-section {
     margin-top: 1rem;
     background: white;
@@ -398,53 +400,54 @@ const selectFoyer = async (foyerId) => {
     color: #0f172a;
     font-size: 1rem;
 }
+
 foyer-id {
-  font-weight: 600;
-  color: #0f172a;
-  font-size: 1rem;
+    font-weight: 600;
+    color: #0f172a;
+    font-size: 1rem;
 }
 
 .foyer-link {
-  color: #3b82f6;
-  text-decoration: none;
-  font-weight: 600;
-  transition: color 0.2s ease;
+    color: #3b82f6;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.2s ease;
 }
 
 .foyer-link:hover {
-  color: #2563eb;
-  text-decoration: underline;
+    color: #2563eb;
+    text-decoration: underline;
 }
 
 .appointment-indicator {
-  width: 8px;
-  height: 8px;
-  background: #3b82f6;
-  border-radius: 50%;
-  animation: pulse 2s infinite;
+    width: 8px;
+    height: 8px;
+    background: #3b82f6;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
 }
 
 .appointment-time {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: #64748b;
-  font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #64748b;
+    font-size: 0.875rem;
 }
 
 .appointment-time i {
-  color: #3b82f6;
-  font-size: 0.875rem;
+    color: #3b82f6;
+    font-size: 0.875rem;
 }
 
 .no-appointments {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 2rem;
-  color: #64748b;
-  text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 2rem;
+    color: #64748b;
+    text-align: center;
 }
 
 .no-appointments i {
@@ -457,12 +460,12 @@ foyer-id {
         transform: scale(0.95);
         box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
     }
-    
+
     70% {
         transform: scale(1);
         box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
     }
-    
+
     100% {
         transform: scale(0.95);
         box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
